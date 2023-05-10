@@ -31,6 +31,11 @@ class OrdersComplete(BaseModel):
     order_time: str
 
 
+class Date(BaseModel):
+    date: constr(regex=r'^\d{4}-\d{2}-\d{2}$')
+
+
+
 @router.post(
     "/couriers",
     status_code=status.HTTP_200_OK
@@ -114,3 +119,14 @@ async def post_complete(order: OrdersComplete):
         return 'HTTP 400 Bad Request'
     else:
         return 'HTTP 200 OK ' + str(order.order_id)
+
+
+@router.get(
+    "/couriers/meta-info/{courier_id}"
+)
+async def f(start_date, end_date):
+    pass
+async def income():
+    pass
+async def rating():
+    pass
