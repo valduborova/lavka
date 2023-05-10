@@ -16,12 +16,20 @@ class Couriers(BaseModel):
     type: str
     working_graphics: str
 
+
 class Orders(BaseModel):
     order_id: int
     weight: int
     region: int
     time_delievery: str
     price: int
+
+
+class OrdersComplete(BaseModel):
+    courier_id: int
+    order_id: int
+    order_time: str
+
 
 @router.post(
     "/couriers",
@@ -32,14 +40,9 @@ async def post_couriers(item: Couriers):
                             region=item.region,
                             type=item.type,
                             working_graphics=item.working_graphics)
-    # try:
     db.add(entry)
     db.commit()
     db.close()
-        # return redirect('/posts')
-    # except:
-    #     return 'При добавлении записи произошла ошибка'
-    # return item.name
 
 
 @router.get(
@@ -72,14 +75,9 @@ async def post_orders(item: Orders):
                             region=item.region,
                             time_delievery=item.time_delievery,
                             price = item.price)
-    # try:
     db.add(entry)
     db.commit()
     db.close()
-        # return redirect('/posts')
-    # except:
-    #     return 'При добавлении записи произошла ошибка'
-    # return item.name
 
 
 @router.get(
@@ -105,6 +103,9 @@ async def get_orders():
 @router.post(
     "/orders/complete"
 )
-async def post_complete():
-    return 'pong'
-
+async def post_complete(order: OrdersComplete):
+    id = db.query(models.Couriers).get(order.courier_id)
+    if id is None:
+        return 'HTTP 400 Bad Request'
+    else:
+        return 'HTTP 200 OK ' + str(order.order_id)
