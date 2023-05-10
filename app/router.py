@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request
 from starlette import status
-from pydantic import BaseModel
+from pydantic import BaseModel, constr
 
 from .database import SessionLocal
 from app import models
@@ -14,7 +14,7 @@ class Couriers(BaseModel):
     courier_id: int
     region: int
     type: str
-    working_graphics: str
+    working_graphics: constr(regex=r'^([01][0-9]|2[0-3]):[0-5][0-9]-([01][0-9]|2[0-3]):[0-5][0-9]$')
 
 
 class Orders(BaseModel):
@@ -94,8 +94,13 @@ async def get_order_id(order_id):
     "/orders",
     status_code=status.HTTP_200_OK
 )
-async def get_orders():
-    entry = db.query(models.Orders).all()
+async def get_orders(offset = 0, limit = 1):
+    query = db.query(models.Orders)
+    if limit:
+        query = query.limit(limit)
+    if offset: 
+        query = query.offset(offset)
+    entry = query.all()
 
     return entry
 
