@@ -23,3 +23,12 @@ class Orders(Base):
     region = Column(Integer)
     time_delievery = Column(String)
     price = Column(Integer)
+
+
+class OrdersComplete(Base):
+    __tablename__ = 'OrdersComplete'
+
+    order_compl_id = Column(Integer, primary_key=True, autoincrement=True)
+    courier_id = Column(Integer)
+    order_id = Column(Integer)
+    order_time = Column(String)
