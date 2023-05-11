@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request
 from starlette import status
 from pydantic import BaseModel, constr
+from datetime import datetime
 
 from .database import SessionLocal
 from app import models
@@ -118,14 +119,21 @@ async def post_complete(order: OrdersComplete):
     if id is None:
         return 'HTTP 400 Bad Request'
     else:
+        db.query(Orders).\
+            filter(Orders.order_id == order.order_id).\
+                update(courier_id=order.courier_id,
+                       order_time=order.order_time)
+        db.commit()
+        db.close()
         return 'HTTP 200 OK ' + str(order.order_id)
 
 
 @router.get(
     "/couriers/meta-info/{courier_id}"
 )
-async def f(start_date, end_date):
-    pass
+async def f(start_date, end_date, courier_id):
+     entry = db.query(models.Couriers).get(courier_id)
+    # datetime.strptime(date_string, format)
 async def income():
     pass
 async def rating():
