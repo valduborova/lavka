@@ -38,9 +38,9 @@ class Orders(BaseModel):
 
 
 class OrdersComplete(BaseModel):
-    courier_id: int
     order_id: int
-    delivered_at: str
+    courier_id: int
+    delivered_at: datetime
 
 
 class DateRange(BaseModel):
@@ -143,7 +143,6 @@ async def get_orders(offset=0, limit=1):
         if offset:
             query = query.offset(offset)
         entry = query.all()
-
     return entry
 
 
@@ -157,14 +156,11 @@ async def post_complete(items: List[OrdersComplete]):
             else:
                 session.query(models.Orders).\
                 filter(models.Orders.order_id == item.order_id).\
-                update(courier_id=item.courier_id,
-                    delivered_at=item.delivered_at)
+                update({models.Orders.courier_id: item.courier_id,
+                    models.Orders.delivered_at: item.delivered_at})
                 session.commit()
-
                 content = {"order_id": item.order_id}
                 return JSONResponse(content, status_code=status.HTTP_200_OK)
-        
-
     return Response(status_code=status.HTTP_200_OK)
 
 
