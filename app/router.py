@@ -48,11 +48,6 @@ class DateRange(BaseModel):
     end_date: str
 
 
-# todo: удалить этот эндпоинт
-@router.get("/ping")
-async def pong():
-    return "pong"
-
 @router.get("/clear_db")
 async def clear_db():
     with SessionLocal() as db:
@@ -85,80 +80,92 @@ async def post_couriers(items: List[Couriers]):
     return Response(status_code=status.HTTP_200_OK)
 
 
-@router.get(
-    "/couriers/{courier_id}",
-    status_code=status.HTTP_200_OK
-)
+@router.get("/couriers/{courier_id}")
 async def get_courier_id(courier_id):
-    entry = db.query(models.Couriers).get(courier_id)
+    with SessionLocal() as db:
+        if not db.get(models.Couriers, courier_id):
+            content = {"message": "no such courier_id", "courier_id": courier_id}
+            return JSONResponse(content, status_code=status.HTTP_400_BAD_REQUEST)
+    return db.query(models.Couriers).get(courier_id) 
+
+
+@router.get("/couriers")
+async def get_couriers(offset=0, limit=1):
+    with SessionLocal() as db:
+        query = db.query(models.Orders)
+        if limit:
+            query = query.limit(limit)
+        if offset:
+            query = query.offset(offset)
+        entry = query.all()
     return entry
 
 
-@router.get(
-    "/couriers",
-    status_code=status.HTTP_200_OK
-)
-async def get_couriers():
-    entry = db.query(models.Couriers).all()
-
-    return entry
-
-
-@router.post(
-    "/orders",
-    status_code=status.HTTP_200_OK
-)
-async def post_orders(item: Orders):
-    entry = models.Orders(order_id=item.order_id,
+@router.post("/orders")
+async def post_orders(items: List[Orders]):
+    ids = set()
+    with SessionLocal() as session:
+        for item in items:
+            if item.order_id in ids:
+                content = {"message": "order_id already exists", "order_id": item.order_id}
+                return JSONResponse(content, status_code=status.HTTP_400_BAD_REQUEST)
+            ids.add(item.order_id)
+        for item in ids:
+            if session.get(models.Orders, item):
+                content = {"message": "order_id already exists", "order_id": item}
+                return JSONResponse(content, status_code=status.HTTP_400_BAD_REQUEST)
+        for item in items:
+            entry = models.Orders(order_id=item.order_id,
                           weight=item.weight,
                           region=item.region,
-                          time_delievery=item.time_delievery,
-                          price=item.price)
-    db.add(entry)
-    db.commit()
-    db.close()
+                          ordered_at=item.ordered_at,
+                          delivery_price=item.delivery_price)
+            session.add(entry)
+        session.commit()
+    return Response(status_code=status.HTTP_200_OK)
 
 
-@router.get(
-    "/orders/{order_id}",
-    status_code=status.HTTP_200_OK
-)
+@router.get("/orders/{order_id}")
 async def get_order_id(order_id):
-    entry = db.query(models.Orders).get(order_id)
+    with SessionLocal() as db:
+        if not db.get(models.Orders, order_id):
+            content = {"message": "no such courier_id", "courier_id": order_id}
+            return JSONResponse(content, status_code=status.HTTP_400_BAD_REQUEST)
+    return db.query(models.Orders).get(order_id) 
 
-    return entry
 
-
-@router.get(
-    "/orders",
-    status_code=status.HTTP_200_OK
-)
+@router.get("/orders")
 async def get_orders(offset=0, limit=1):
-    query = db.query(models.Orders)
-    if limit:
-        query = query.limit(limit)
-    if offset:
-        query = query.offset(offset)
-    entry = query.all()
+    with SessionLocal() as db:
+        query = db.query(models.Orders)
+        if limit:
+            query = query.limit(limit)
+        if offset:
+            query = query.offset(offset)
+        entry = query.all()
 
     return entry
 
 
-@router.post(
-    "/orders/complete"
-)
-async def post_complete(order: OrdersComplete):
-    id = db.query(models.Couriers).get(order.courier_id)
-    if id is None:
-        return 'HTTP 400 Bad Request'
-    else:
-        db.query(Orders).\
-            filter(Orders.order_id == order.order_id).\
-            update(courier_id=order.courier_id,
-                   order_time=order.order_time)
-        db.commit()
-        db.close()
-        return 'HTTP 200 OK ' + str(order.order_id)
+@router.post("/orders/complete")
+async def post_complete(items: List[OrdersComplete]):
+    with SessionLocal() as session:
+        for item in items:
+            if not session.query(models.Orders).get(item.order_id) :
+                content = {"message": "no such order_id", "order_id": item}
+                return JSONResponse(content, status_code=status.HTTP_400_BAD_REQUEST)
+            else:
+                session.query(models.Orders).\
+                filter(models.Orders.order_id == item.order_id).\
+                update(courier_id=item.courier_id,
+                    delivered_at=item.delivered_at)
+                session.commit()
+
+                content = {"order_id": item.order_id}
+                return JSONResponse(content, status_code=status.HTTP_200_OK)
+        
+
+    return Response(status_code=status.HTTP_200_OK)
 
 
 @router.get("/couriers/meta-info/{courier_id}")
