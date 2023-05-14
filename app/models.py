@@ -31,7 +31,7 @@ class Couriers(Base):
     working_graphics = Column(ARRAY(String))
 
     def __repr__(self):
-        return f'<Couriers(courier_id={self.courier_id}, region_id={self.region_id}, " \
+        return f'<Couriers(courier_id={self.courier_id}, region={self.region}, " \
             "type_id={self.type_id}, working_graphics={self.working_graphics})>'
 
 
@@ -51,7 +51,7 @@ class Orders(Base):
     CheckConstraint('price >= 0', name='price_check')
 
     def __repr__(self):
-        return f'<Orders(order_id={self.order_id}, weight={self.weight}, region_id={self.region_id}, " \
+        return f'<Orders(order_id={self.order_id}, weight={self.weight}, region={self.region}, " \
             "ordered_at={self.ordered_at}, price={self.delivery_price}, courier_id={self.courier_id}, " \
             "delivered_at={self.delivered_at})>'
 

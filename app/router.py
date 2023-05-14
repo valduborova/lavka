@@ -33,14 +33,14 @@ class Orders(BaseModel):
     order_id: int
     weight: int
     region: int
-    ordered_at: datetime
+    ordered_at: str
     delivery_price: int
 
 
 class OrdersComplete(BaseModel):
     order_id: int
     courier_id: int
-    delivered_at: datetime
+    delivered_at: str
 
 
 class DateRange(BaseModel):
@@ -51,8 +51,8 @@ class DateRange(BaseModel):
 @router.get("/clear_db")
 async def clear_db():
     with SessionLocal() as db:
-        db.query(models.Couriers).delete()
         db.query(models.Orders).delete()
+        db.query(models.Couriers).delete()
         db.commit()
     return Response(status_code=status.HTTP_200_OK)
 
@@ -115,10 +115,11 @@ async def post_orders(items: List[Orders]):
                 content = {"message": "order_id already exists", "order_id": item}
                 return JSONResponse(content, status_code=status.HTTP_400_BAD_REQUEST)
         for item in items:
+            date = parser.parse(item.ordered_at)
             entry = models.Orders(order_id=item.order_id,
                           weight=item.weight,
                           region=item.region,
-                          ordered_at=item.ordered_at,
+                          ordered_at=date,
                           delivery_price=item.delivery_price)
             session.add(entry)
         session.commit()
@@ -147,40 +148,41 @@ async def get_orders(offset=0, limit=1):
 
 
 @router.post("/orders/complete")
-async def post_complete(items: List[OrdersComplete]):
+async def post_complete(item: OrdersComplete):
     with SessionLocal() as session:
-        for item in items:
-            if not session.query(models.Orders).get(item.order_id) :
-                content = {"message": "no such order_id", "order_id": item}
-                return JSONResponse(content, status_code=status.HTTP_400_BAD_REQUEST)
-            else:
-                session.query(models.Orders).\
-                filter(models.Orders.order_id == item.order_id).\
-                update({models.Orders.courier_id: item.courier_id,
-                    models.Orders.delivered_at: item.delivered_at})
-                session.commit()
-                content = {"order_id": item.order_id}
-                return JSONResponse(content, status_code=status.HTTP_200_OK)
-    return Response(status_code=status.HTTP_200_OK)
+        if not session.query(models.Orders).get(item.order_id):
+            content = {"message": "no such order_id", "order_id": item}
+            return JSONResponse(content, status_code=status.HTTP_400_BAD_REQUEST)
+        date = parser.parse(item.delivered_at)
+        session.query(models.Orders).\
+        filter(models.Orders.order_id == item.order_id).\
+        update({models.Orders.courier_id: item.courier_id,
+            models.Orders.delivered_at: date})
+        session.commit()
+        content = {"order_id": item.order_id}
+        return JSONResponse(content, status_code=status.HTTP_200_OK)
 
 
 @router.get("/couriers/meta-info/{courier_id}")
-async def get_meta(courier_id: int, daterange: DateRange):
-    start_date = parser.parse(daterange.start_date)
-    end_date = parser.parse(daterange.end_date)
+async def get_meta(courier_id: int, start_date: str, end_date: str):
+    start = parser.parse(start_date)
+    end = parser.parse(end_date)
+    if start > end:
+        content = {"message": "start_date must be earlier than end_date"}
+        return JSONResponse(content, status_code=status.HTTP_400_BAD_REQUEST)
     with SessionLocal() as session:
         courier = session.get(models.Couriers, courier_id)
         if courier is None:
-            content = {"message": "Courier not found"}
-            return Response(content, status_code=status.HTTP_404_NOT_FOUND)
+            content = {"message": f"Provided {courier_id=} not found"}
+            return JSONResponse(content, status_code=status.HTTP_404_NOT_FOUND)
         orders = session.query(models.Orders).\
             filter(models.Orders.courier_id == courier_id).\
-            filter(models.Orders.ordered_at >= start_date).\
-            filter(models.Orders.ordered_at < end_date).all()
-    if not orders:
-        content = {"message": f"Provided {courier_id=} does not have any orders in provided time period"}
-        return Response(content, status_code=status.HTTP_200_OK)
-    income = sum([order.delivery_price * courier.type.c_payment for order in orders])
-    rating = len(orders) / (end_date - start_date).total_seconds() / 3600 * courier.type.c_rating
+            filter(models.Orders.delivered_at >= start).\
+            filter(models.Orders.delivered_at < end).all()
+        if not orders:
+            content = {"message": f"Provided {courier_id=} does not have any orders in provided time period"}
+            return JSONResponse(content, status_code=status.HTTP_200_OK)
+        income = sum(order.delivery_price * courier.type.c_payment for order in orders)
+        rating = len(orders) / ((end - start).total_seconds() // 3600) * courier.type.c_rating
     content = {"income": income, "rating": rating}
-    return Response(content, status_code=status.HTTP_200_OK)
+    return JSONResponse(content, status_code=status.HTTP_200_OK)
