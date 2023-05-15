@@ -35,17 +35,17 @@ class Couriers(Base):
             "type_id={self.type_id}, working_graphics={self.working_graphics})>'
 
 
-
 class Orders(Base):
     __tablename__ = 'orders'
 
     order_id = Column(Integer, primary_key=True)
     weight = Column(Integer)
     region = Column(Integer)
-    ordered_at = Column(DateTime)
+    delivery_intervals = Column(ARRAY(String))
     delivery_price = Column(Integer)
     # Extra fields
-    courier_id = Column(Integer, ForeignKey('couriers.courier_id'), nullable=True)
+    courier_id = Column(Integer, ForeignKey(
+        'couriers.courier_id'), nullable=True)
     delivered_at = Column(DateTime, nullable=True)
     CheckConstraint('weight >= 0', name='weight_check')
     CheckConstraint('price >= 0', name='price_check')
@@ -54,4 +54,3 @@ class Orders(Base):
         return f'<Orders(order_id={self.order_id}, weight={self.weight}, region={self.region}, " \
             "ordered_at={self.ordered_at}, price={self.delivery_price}, courier_id={self.courier_id}, " \
             "delivered_at={self.delivered_at})>'
-

@@ -33,7 +33,7 @@ class Orders(BaseModel):
     order_id: int
     weight: int
     region: int
-    ordered_at: str
+    delivery_intervals: List[constr(regex=r'^([01][0-9]|2[0-3]):[0-5][0-9]-([01][0-9]|2[0-3]):[0-5][0-9]$')]
     delivery_price: int
 
 
@@ -115,11 +115,10 @@ async def post_orders(items: List[Orders]):
                 content = {"message": "order_id already exists", "order_id": item}
                 return JSONResponse(content, status_code=status.HTTP_400_BAD_REQUEST)
         for item in items:
-            date = parser.parse(item.ordered_at)
             entry = models.Orders(order_id=item.order_id,
                           weight=item.weight,
                           region=item.region,
-                          ordered_at=date,
+                          delivery_intervals=item.delivery_intervals,
                           delivery_price=item.delivery_price)
             session.add(entry)
         session.commit()
