@@ -136,7 +136,7 @@ async def get_order_id(order_id):
 
 
 @router.get("/orders")
-async def get_orders(offset=0, limit=1):
+async def get_orders(offset: int = 0, limit: int = 1):
     with SessionLocal() as db:
         query = db.query(models.Orders)
         if limit:
@@ -144,7 +144,12 @@ async def get_orders(offset=0, limit=1):
         if offset:
             query = query.offset(offset)
         entry = query.all()
-    return entry
+    content = [item.__dict__ for item in entry]
+    for item in content:
+        item.pop('_sa_instance_state')
+        item.pop('courier_id')
+        item.pop('delivered_at')
+    return content
 
 
 @router.post("/orders/complete")
